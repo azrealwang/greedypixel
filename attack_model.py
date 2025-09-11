@@ -36,8 +36,6 @@ def main(args):
     # Load target model
     if args.target == 'ViT': 
         target = timm.create_model('vit_base_patch16_224', pretrained=True, num_classes=1000).eval()
-    elif args.target == 'VGG':
-        target = timm.create_model('vgg19_bn.tv_in1k', pretrained=True, num_classes=1000).eval()
     else:
         target = load_model(args.target, dataset=args.data, threat_model="Linf")
     if args.batch_size is None:
@@ -69,15 +67,17 @@ def main(args):
     queries = list()
     for idx, (x, y) in enumerate(zip(x_test, y_test)):
         print(f"Sample {args.start_idx + idx + 1}...")
+        x = x.unsqueeze(0)
+        y = y.unsqueeze(0)
         x_adv, query = attack.attack(x,y)
         print(f"Query Cost: {query}")
         # Save adversarial examples
-        save_all_images(x_adv.unsqueeze(0), y.unsqueeze(0), args.output, args.start_idx+idx) 
-        x_test_adv[idx] = x_adv
+        save_all_images(x_adv, y, args.output, args.start_idx+idx) 
+        x_test_adv[idx] = x_adv[0]
         queries.append(query)   
     end_time = time.time()
     time_cost = end_time - start_time # record time cost
-    queries = torch.stack(queries)
+    queries = torch.Tensor(queries)
     print(f"Time cost: {time_cost}s; Avg.Q: {queries.mean()}; Median.Q: {queries.median()}")
     
     # Robust accuracy
@@ -86,6 +86,7 @@ def main(args):
     accuracy = (predictions.max(1)[1] == y_test).float().mean()
     print(f"Accuracy of adversarial examples: {accuracy}; Linf distance: {d_linf}")
     x_test_adv_load, _= load_samples(args.output,args.start_idx,args.end_idx)
+    x_test_adv_load = torch.Tensor(x_test_adv_load)
     load_err = (x_test_adv_load-x_test_adv).abs().max()*255
     predictions = predict(target,x_test_adv_load,batch_size=args.batch_size)
     accuracy = (predictions.max(1)[1] == y_test).float().mean()

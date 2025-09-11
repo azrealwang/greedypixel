@@ -1,7 +1,7 @@
 import random
 import torch
 import torch.nn.functional as F
-from itertools import product
+from itertools import product,cycle
 
 class GreedyPixel():
 
@@ -67,36 +67,45 @@ class GreedyPixel():
         return torch.clamp(true_logits - max_other_logits + kappa, min=0)
 
     def attack(self, x, y):
-        x = x.clone().detach().to(self.device)
+        # Save original image for L∞ constraint
+        x_orig = x.clone().detach().to(self.device)
+        x = x_orig.clone()
         y = y.clone().detach().to(self.device)
 
         pixel_order = self.compute_gradient_order(x)
         query = 0
 
-        for it, (r, c) in enumerate(pixel_order, start=1):
-            if query > self.max_query:
+        # Precompute the 8 corner deltas relative to original image
+        deltas = torch.tensor(list(product([-self.eps, self.eps], repeat=3)),
+                              device=self.device)
+
+        for it, (r, c) in enumerate(cycle(pixel_order), start=1):
+            if query > self.max_query - 8:
                 break
 
-            orig_px = x[0, :, r, c].clone()
+            # Always use ORIGINAL pixel value as center
+            center_px = x_orig[0, :, r, c]
+            cand_pixels = (center_px.unsqueeze(0) + deltas).clamp(0, 1)  # [8, 3]
 
-            # Generate all 8 candidates at once
-            deltas = torch.tensor(list(product([-self.eps, self.eps], repeat=3)),
-                                  device=self.device)
-            cand_pixels = (orig_px.unsqueeze(0) + deltas).clamp(0, 1)  # [8, 3]
-
-            # Clone x for each candidate and apply perturbation
+            # Build candidate batch
             x_batch = x.repeat(len(deltas), 1, 1, 1)  # [8, C, H, W]
             x_batch[:, :, r, c] = cand_pixels
 
             # Forward pass (batched)
-            x_batch.requires_grad_(False)
-            logits = self.target(x_batch)
+            with torch.no_grad():
+                logits = self.target(x_batch)
             query += len(deltas)
 
             # Compute CW losses and pick the best
             losses = self.cw_loss(logits, y.repeat(len(deltas)))
             best_idx = losses.argmin()
+
+            # Update pixel to the chosen candidate
             x[0, :, r, c] = cand_pixels[best_idx]
+
+            # Hard-project back into L∞ ball
+            x = torch.max(torch.min(x, x_orig + self.eps),
+                          x_orig - self.eps).clamp(0, 1)
 
             # Early stop: misclassification achieved
             pred = logits[best_idx].argmax()

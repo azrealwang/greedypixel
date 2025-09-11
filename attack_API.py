@@ -1,8 +1,8 @@
 from typing import List, Tuple
 import os
 import argparse
-import itertools
 import torch
+from itertools import product,cycle
 from robustbench import load_model
 from utils import load_image_tensor,save_image_tensor
 from greedypixel import GreedyPixel
@@ -103,20 +103,19 @@ class MultiCloudClassifier:
         return [(t["name"], float(t["confidence"])) for t in tags[:top_n]]
 
 def run_attack(args):
-    # Initilization
+    # Initialization
     clf = MultiCloudClassifier()
     x = load_image_tensor(args.input)
-    eps = args.eps / 255.0  # Normalize eps
+    x_orig = x.clone().detach()  # keep original image for L∞ constraint
+    eps = args.eps / 255.0  # eps already normalized
     os.makedirs(args.output, exist_ok=True)
     os.makedirs("_tmp", exist_ok=True)
     tmp_path = os.path.join("_tmp", "current.png")
-    if args.surrogate:
-        surrogate = load_model(args.surrogate, dataset=args.data, threat_model="Linf")
-    else:
-        surrogate = None
+
+    surrogate = load_model(args.surrogate, dataset=args.data, threat_model="Linf") if args.surrogate else None
 
     # Compute priority map
-    attack = GreedyPixel(clf,surrogate)
+    attack = GreedyPixel(clf, surrogate)
     pixel_order = attack.compute_gradient_order(x)
 
     # Initial API query
@@ -127,61 +126,73 @@ def run_attack(args):
     print(f"\nInitial Top-{args.top_n}:")
     for lbl, conf in initial_topn:
         print(f"  {lbl}: {conf:.4f}")
-    
+
     query = 0
     label_changed = False
-    for it, (r, c) in enumerate(pixel_order, start=1):
-        if query > args.max_query:
-            break
-        orig_px = x[0, :, r, c].clone()
-        best_px = orig_px 
 
-        for delta in itertools.product([-eps, eps], repeat=3):
-            cand = (orig_px + torch.tensor(delta)).clamp(0, 1)
+    # Precompute candidate deltas (8 corners in L∞ ball)
+    deltas = [torch.tensor(delta) for delta in product([-eps, eps], repeat=3)]
+
+    for it, (r, c) in enumerate(cycle(pixel_order), start=1):
+        if query >= args.max_query:
+            break
+
+        center_px = x_orig[0, :, r, c]  # always use ORIGINAL pixel as reference
+        best_px = x[0, :, r, c].clone()  # fallback to current pixel
+        best_conf = best_gt_conf
+
+        for delta in deltas:
+            cand = (center_px + delta).clamp(0, 1)
             x[0, :, r, c] = cand
 
             save_image_tensor(x, tmp_path)
             topn = clf.classify_one(args.api, tmp_path, top_n=args.top_n)
             query += 1
+
             if not topn:
                 print("[WARN] API returned no predictions, skipping candidate.")
                 continue
 
-            # Try to find ground-truth label in top-n
+            # Check if GT label still exists in top-n
             gt_conf = None
             for lbl, conf in topn:
                 if lbl == gt_label:
                     gt_conf = conf
                     break
 
-            # Ground-truth disappeared from top-n → SUCCESS
+            # Success: GT disappeared
             if gt_conf is None:
                 save_image_tensor(x, os.path.join(args.output, "success.png"))
                 print(f"\nGround-truth '{gt_label}' not found in top-{args.top_n} after {query} queries. "
-                    f"Saved image to {args.output}/success.png")
+                      f"Saved image to {args.output}/success.png")
                 for lbl, conf in topn:
                     print(f"  {lbl}: {conf:.4f}")
                 print(f"[INFO] Attack stopped at pixel #{it} after {query} queries.")
-                return  # stop attack immediately
+                return
 
-            # If GT found but not top-1, we consider this a label change
+            # Top-1 label changed
             if topn[0][0] != gt_label and not label_changed:
                 label_changed = True
                 save_image_tensor(x, os.path.join(args.output, "label_change.png"))
                 print(f"\nTop-1 changed from '{gt_label}' to '{topn[0][0]}' after {query} queries. "
-                    f"Saved image to {args.output}/label_change.png")
+                      f"Saved image to {args.output}/label_change.png")
                 for lbl, conf in topn:
                     print(f"  {lbl}: {conf:.4f}")
                 if args.early_stop:
                     print(f"[INFO] Attack stopped at pixel #{it} after {query} queries.")
-                    return  # stop attack immediately
+                    return
 
-            # Otherwise: still GT on top, just track confidence for minimization
-            if gt_conf < best_gt_conf:
-                best_gt_conf = gt_conf
+            # Pick candidate minimizing GT confidence
+            if gt_conf < best_conf:
+                best_conf = gt_conf
                 best_px = cand
 
+            if query >= args.max_query:
+                break
+
+        # Set best pixel found and project back into L∞ ball
         x[0, :, r, c] = best_px
+        x = torch.max(torch.min(x, x_orig + eps), x_orig - eps).clamp(0, 1)
 
     print(f"\nReached {args.max_query} max queries.")
     save_image_tensor(x, os.path.join(args.output, "max_query.png"))

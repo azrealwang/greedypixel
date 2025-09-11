@@ -25,8 +25,6 @@ if __name__ == "__main__":
     # Load Model
     if args.target == 'ViT': 
         target = timm.create_model('vit_base_patch16_224', pretrained=True, num_classes=1000).eval()
-    elif args.target == 'VGG':
-        target = timm.create_model('vgg19_bn.tv_in1k', pretrained=True, num_classes=1000).eval()
     else:
         target = load_model(args.target, dataset=args.data, threat_model="Linf")
 

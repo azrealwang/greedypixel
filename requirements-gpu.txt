@@ -1,7 +1,10 @@
+# Point pip to the PyTorch CUDA 11.8 wheel index
+--extra-index-url https://download.pytorch.org/whl/cu118
+
 # Install PyTorch with GPU (CUDA 11.8)
-torch==2.1.2+cu118 --index-url https://download.pytorch.org/whl/cu118
-torchvision==0.16.2+cu118 --index-url https://download.pytorch.org/whl/cu118
-torchaudio==2.1.2+cu118 --index-url https://download.pytorch.org/whl/cu118
+torch==2.1.2+cu118
+torchvision==0.16.2+cu118
+torchaudio==2.1.2+cu118
 numpy==1.26.4
 
 # Install RobustBench
