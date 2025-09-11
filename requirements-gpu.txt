@@ -1,0 +1,14 @@
+# Install PyTorch with GPU (CUDA 11.8)
+torch==2.1.2+cu118 --index-url https://download.pytorch.org/whl/cu118
+torchvision==0.16.2+cu118 --index-url https://download.pytorch.org/whl/cu118
+torchaudio==2.1.2+cu118 --index-url https://download.pytorch.org/whl/cu118
+numpy==1.26.4
+
+# Install RobustBench
+git+https://github.com/RobustBench/robustbench.git
+
+# Install Google Cloud Vision (only for attacking API)
+google-cloud-vision
+
+# Install AWS Rekognition (only for attacking API)
+boto3
