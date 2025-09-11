@@ -86,6 +86,8 @@ python attack_API.py --eps 255 --max_query 400 --surrogate Singh2023Revisiting_C
 | `--data` | `str` | `"imagenet"` | Dataset name (currently only `imagenet` supported). |
 | `--input` | `str` | **(required)** | Path to the input image file. |
 | `--output` | `str` | **(required)** | Directory where results will be saved (e.g., adversarial examples, logs). |
+| `--start_idx` | `int` | `0` | start file (index). |
+| `--end_idx` | `int` | `10` | end file (index + 1). |
 
 ## Citation
 ```

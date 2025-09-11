@@ -21,6 +21,8 @@ def parse_args_and_config():
     parser.add_argument("--data", help="cifar10 or imagenet", type=str, default="cifar10")
     parser.add_argument("--input", help="directory", type=str, required=True)
     parser.add_argument("--output", help="directory", type=str, required=True)
+    parser.add_argument('--start_idx', help='start idx', type=int, default=0)
+    parser.add_argument('--end_idx', help='end idx, id+1', type=int, default=10)
     args = parser.parse_args()
 
     return args
