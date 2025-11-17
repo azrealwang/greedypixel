@@ -1,6 +1,6 @@
 # GreedyPixel: Fine-Grained Black-Box Adversarial Attack Via Greedy Algorithm
 
-[PDF](https://arxiv.org/pdf/2501.14230)
+[Publication](https://doi.org/10.1109/TIFS.2025.3630890) | [PDF](https://arxiv.org/pdf/2501.14230)
 
 ## Main Requirements
   * **Python (3.9.32)**
@@ -91,8 +91,11 @@ python attack_API.py --eps 255 --max_query 400 --surrogate Singh2023Revisiting_C
 @article{wang2025greedypixel,
   title={Greedypixel: Fine-grained black-box adversarial attack via greedy algorithm},
   author={Wang, Hanrui and Chang, Ching-Chun and Lu, Chun-Shien and Leckie, Christopher and Echizen, Isao},
-  journal={arXiv preprint arXiv:2501.14230},
-  year={2025}
+  journal={IEEE Transactions on Information Forensics and Security},
+  year={2025},
+  volume={20},
+  pages={12080-12095},
+  doi={10.1109/TIFS.2025.3630890}
 }
 ```
 
