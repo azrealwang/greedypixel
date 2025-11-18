@@ -2,6 +2,10 @@
 
 [Publication](https://doi.org/10.1109/TIFS.2025.3630890) | [PDF](https://arxiv.org/pdf/2501.14230)
 
+<img src="figures/intro.png" alt="intro" style="width:800px;"/>
+
+Deep neural networks are highly vulnerable to adversarial examples, which are inputs with small, carefully crafted perturbations that cause misclassification—making adversarial attacks a critical tool for evaluating robustness. Existing black-box methods typically entail a trade-off between precision and flexibility: pixel-sparse attacks (e.g., single- or few-pixel attacks) provide fine-grained control but lack adaptability, whereas patch- or frequency-based attacks improve efficiency or transferability, but at the cost of producing larger and less precise perturbations. We present **GreedyPixel**, a fine-grained black-box attack method that performs **brute-force-style, per-pixel greedy optimization** guided by a surrogate-derived priority map and refined by means of query feedback. It evaluates each coordinate directly **without any gradient information**, guaranteeing monotonic loss reduction and convergence to a coordinate-wise optimum, while also yielding near white-box-level precision and pixel-wise sparsity and perceptual quality. On the CIFAR-10 and ImageNet datasets, spanning convolutional neural networks (CNNs) and Transformer models, GreedyPixel achieved state-of-the-art success rates with visually imperceptible perturbations, effectively bridging the gap between black-box practicality and white-box performance.
+
 ## Main Requirements
   * **Python (3.9.32)**
   * **torch (2.1.2+cu118)**
